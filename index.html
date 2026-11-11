@@ -488,23 +488,44 @@
     }
   });
 
-  // ---- Receive ----
-  async function fetchMessages() {
-    try {
-      const res = await fetch("/api/messages?after=" + lastId);
-      if (!res.ok) throw new Error(res.status);
-      (await res.json()).messages.forEach(render);
-      statusCell.textContent = "Connected to ama — anonymous chat";
-    } catch {
-      statusCell.textContent = "Error: connection lost — retrying…";
-    } finally {
-      polling = setTimeout(fetchMessages, 2000);
-    }
+  // ---- Receive (adaptive polling: fast while active, slower when idle) ----
+  let activeInterval = 800;   // fast while user is active
+  let idleInterval = 2500;    // relaxed after 20s without sending
+  let lastActivity = Date.now();
+
+  function currentInterval() {
+    if (document.hidden) return idleInterval;
+    return (Date.now() - lastActivity < 20000) ? activeInterval : idleInterval;
+  }
+
+  ["keydown", "click", "touchstart", "focus"].forEach((ev) =>
+    document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true })
+  );
+
+  let pollTimer = null;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    if (document.hidden) { polling = null; return; } // stop when tab hidden
+    pollTimer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/messages?after=" + lastId);
+        if (!res.ok) throw new Error(res.status);
+        (await res.json()).messages.forEach(render);
+        statusCell.textContent = "Connected to ama — anonymous chat";
+      } catch {
+        statusCell.textContent = "Error: connection lost — retrying…";
+      }
+      schedulePoll();
+    }, currentInterval());
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { clearTimeout(polling); polling = null; }
-    else if (!polling) fetchMessages();
+    if (document.hidden) {
+      clearTimeout(pollTimer);
+      polling = null;
+    } else {
+      fetchMessages();
+    }
   });
 
   // ---- Clock ----
@@ -524,6 +545,14 @@
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  function fetchMessages() {
+    // immediate first fetch, then the adaptive loop takes over
+    fetch("/api/messages?after=" + lastId)
+      .then((r) => r.json())
+      .then((d) => d.messages.forEach(render))
+      .finally(schedulePoll);
   }
 
   fetchMessages();
