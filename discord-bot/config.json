@@ -1,0 +1,6 @@
+{
+  "_comment": "Discord bot config — token stored here for now (NOT recommended for public repos; move to env var when the bot goes live)",
+  "token": "3LydihHKToqzZzPSAV7p64Jn8OM",
+  "status": "idle",
+  "note": "Bot not yet implemented — awaiting instructions"
+}
