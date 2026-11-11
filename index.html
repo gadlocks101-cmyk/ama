@@ -331,8 +331,8 @@
       fileInput.value = "";
       return;
     }
-    if (file.size > 4.2 * 1024 * 1024) {
-      statusLine.textContent = "file too large — max is ~4 MB";
+    if (file.size > 24 * 1024 * 1024) {
+      statusLine.textContent = "file too large — max is 24 MB";
       return;
     }
     const isImage = file.type.startsWith("image/");
