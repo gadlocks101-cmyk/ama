@@ -1,0 +1,14 @@
+name = "ama-bot"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[durable_objects.bindings]]
+name = "BOT"
+class_name = "BotDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BotDO"]
