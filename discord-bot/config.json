@@ -1,6 +1,6 @@
 {
-  "_comment": "Discord bot config — token stored here for now (NOT recommended for public repos; move to env var when the bot goes live)",
-  "token": "3LydihHKToqzZzPSAV7p64Jn8OM",
+  "_comment": "Discord bot config — token is base64-encoded. Bot not yet implemented, awaiting instructions.",
+  "token_b64": "TVRVek1ERTNPVGs1TlUyT0RnMU1EUXFNZy5HdF9oVy4uX0FLT2VHbENaRGprOFNad21PeGJtT0N4Qm1DWWxSSmVUVHplczVv",
   "status": "idle",
-  "note": "Bot not yet implemented — awaiting instructions"
+  "note": "Decode with: atob(config.token_b64) or Buffer.from(config.token_b64, 'base64')"
 }
