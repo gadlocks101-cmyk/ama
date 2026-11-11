@@ -2,21 +2,570 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ama</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1e1f22">
+<meta name="description" content="ama — anonymous chat. No accounts, no names, just talk.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ama">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<title>ama · anonymous chat</title>
 <style>
-  html, body { height: 100%; margin: 0; }
+  :root {
+    --rail: #1e1f22;
+    --sidebar: #2b2d31;
+    --chat: #313338;
+    --input: #383a40;
+    --hover: #393c41;
+    --active: #404249;
+    --border: #26272b;
+    --text: #dbdee1;
+    --text-bright: #f2f3f5;
+    --muted: #949ba4;
+    --blurple: #5865f2;
+    --green: #23a55a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
   body {
+    font-family: "gg sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--rail);
+    color: var(--text);
     display: flex;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Server rail ---- */
+  .rail {
+    width: 72px;
+    background: var(--rail);
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    background: #0f1117;
-    color: #8a93a8;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 12px 0;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .server-icon {
+    width: 48px; height: 48px;
+    border-radius: 16px;
+    background: var(--blurple);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: border-radius .15s, background .15s;
+    overflow: hidden;
+  }
+  .server-icon:hover, .server-icon.active { border-radius: 12px; }
+  .server-icon img { width: 34px; height: 34px; }
+  .rail-sep { width: 32px; height: 2px; background: var(--border); border-radius: 1px; }
+  .pill-wrap { position: relative; width: 100%; display: flex; justify-content: center; }
+  .pill {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 4px; height: 8px; background: #fff; border-radius: 0 4px 4px 0;
+    transition: height .15s;
+  }
+  .pill-wrap:hover .pill, .pill-wrap.active .pill { height: 40px; }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    width: 240px;
+    background: var(--sidebar);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-left: 1px solid rgba(0,0,0,.2);
+  }
+  .server-header {
+    height: 48px;
+    padding: 0 16px;
+    display: flex; align-items: center;
+    font-weight: 600; color: var(--text-bright);
+    font-size: 15px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.2);
+    justify-content: space-between;
+  }
+  .server-header .chev { color: var(--muted); font-size: 12px; }
+  .channels { flex: 1; padding: 8px; overflow-y: auto; }
+  .channel-category {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .02em;
+    padding: 16px 8px 4px; cursor: pointer;
+  }
+  .channel-category:hover { color: var(--text); }
+  .channel {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; margin: 1px 0;
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .channel .hash { font-size: 20px; font-weight: 500; }
+  .channel:hover { background: var(--hover); color: var(--text); }
+  .channel.active { background: var(--active); color: var(--text-bright); }
+  .user-panel {
+    height: 52px;
+    background: #232428;
+    display: flex; align-items: center;
+    padding: 0 8px;
+    gap: 8px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--blurple);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: #fff; font-size: 14px;
+    flex-shrink: 0;
+  }
+  .user-info { flex: 1; min-width: 0; line-height: 1.2; }
+  .user-info .name { font-size: 14px; font-weight: 600; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-info .tag { font-size: 12px; color: var(--muted); }
+
+  /* ---- Main chat ---- */
+  .main { flex: 1; display: flex; flex-direction: column; background: var(--chat); min-width: 0; }
+  .chat-header {
+    height: 48px;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.2);
+    flex-shrink: 0;
+  }
+  .chat-header .hash { color: var(--muted); font-size: 24px; font-weight: 500; }
+  .chat-header h2 { font-size: 16px; font-weight: 600; color: var(--text-bright); }
+  .chat-header .desc { color: var(--muted); font-size: 14px; margin-left: 8px; border-left: 1px solid var(--border); padding-left: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 0 8px;
+    overscroll-behavior: contain;
+  }
+  .channel-intro { padding: 12px 16px 0; margin-bottom: 8px; }
+  .channel-intro .big-hash {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: var(--active); color: var(--text-bright);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; margin-bottom: 8px;
+  }
+  .channel-intro h3 { font-size: 32px; color: var(--text-bright); font-weight: 700; }
+  .channel-intro p { color: var(--muted); font-size: 16px; margin-top: 4px; }
+  .divider { display: flex; align-items: center; gap: 8px; margin: 16px 16px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+  .msg {
+    display: flex; gap: 16px;
+    padding: 2px 16px;
+    margin-top: 12px;
+  }
+  .msg:hover { background: rgba(0,0,0,.06); }
+  .msg .avatar { width: 40px; height: 40px; font-size: 16px; }
+  .msg .content { min-width: 0; flex: 1; }
+  .msg .head { display: flex; align-items: baseline; gap: 8px; }
+  .msg .name { font-size: 15px; font-weight: 600; color: var(--text-bright); }
+  .msg .name.mine { color: #c9cdfb; }
+  .msg .time { font-size: 12px; color: var(--muted); }
+  .msg .body { font-size: 15px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+  .msg .media { margin-top: 4px; max-width: min(440px, 100%); }
+  .msg img, .msg video { max-width: 100%; max-height: 350px; border-radius: 8px; display: block; }
+  .msg audio { max-width: 100%; height: 40px; margin-top: 4px; }
+  .msg .file {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--input); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-top: 4px;
+    color: var(--text); text-decoration: none;
+  }
+  .msg .file:hover { border-color: var(--muted); }
+  .msg .file .fsize { color: var(--muted); font-size: 12px; }
+  .system { text-align: center; font-size: 13px; color: var(--muted); padding: 4px 16px; }
+
+  /* ---- Composer ---- */
+  .composer { padding: 0 16px 24px; flex-shrink: 0; }
+  .attach-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--input); border-radius: 8px 8px 0 0;
+    padding: 10px 14px; font-size: 13px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .attach-bar img, .attach-bar video { max-height: 56px; border-radius: 6px; }
+  .attach-bar .fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .attach-bar button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+  .attach-bar button:hover { color: var(--text); }
+  .input-box {
+    display: flex; align-items: flex-end;
+    background: var(--input);
+    border-radius: 8px;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  .input-box.with-attach { border-radius: 0 0 8px 8px; }
+  .icon-btn {
+    background: none; border: none;
+    color: var(--muted); font-size: 22px;
+    cursor: pointer; line-height: 1;
+    padding: 2px 2px 6px;
+  }
+  .icon-btn:hover { color: var(--text-bright); }
+  #input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text-bright);
+    font-size: 15px; font-family: inherit;
+    padding: 6px 0; resize: none;
+    max-height: 140px; min-width: 0;
+  }
+  #input::placeholder { color: #6d7078; }
+  #sendBtn {
+    background: var(--blurple); border: none; color: #fff;
+    border-radius: 6px; padding: 7px 16px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    flex-shrink: 0;
+  }
+  #sendBtn:disabled { opacity: .5; cursor: wait; }
+  #statusLine { text-align: center; font-size: 12px; color: var(--muted); padding: 6px 0 0; min-height: 18px; }
+
+  /* ---- Mobile ---- */
+  .menu-btn { display: none; }
+  @media (max-width: 768px) {
+    .rail { display: none; }
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 10;
+      transform: translateX(-100%);
+      transition: transform .2s ease;
+      width: 260px;
+    }
+    .sidebar.open { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,.5); }
+    .sidebar.open::after {
+      content: ""; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: -1;
+    }
+    .menu-btn {
+      display: block; background: none; border: none;
+      color: var(--muted); font-size: 22px; cursor: pointer; padding: 0 4px;
+    }
+    .chat-header .desc { display: none; }
+    .msg .avatar { width: 32px; height: 32px; font-size: 13px; }
+    .channel-intro h3 { font-size: 24px; }
+    .channel-intro .big-hash { width: 56px; height: 56px; font-size: 32px; }
   }
 </style>
 </head>
 <body>
-<div>coming soon…</div>
+  <div class="rail">
+    <div class="pill-wrap active">
+      <span class="pill"></span>
+      <div class="server-icon active" title="ama">
+        <img src="/logo.png" alt="ama">
+      </div>
+    </div>
+    <div class="rail-sep"></div>
+    <div class="server-icon" style="background:#3ba55c; color:#fff; font-weight:700; font-size:18px;">+</div>
+  </div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="server-header">
+      <span>ama</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="channels">
+      <div class="channel-category">Text Channels</div>
+      <div class="channel active"><span class="hash">#</span> general</div>
+      <div class="channel"><span class="hash">#</span> off-topic</div>
+      <div class="channel-category">Voice Channels</div>
+      <div class="channel"><span class="hash" style="font-size:14px;">🔊</span> Lounge</div>
+    </div>
+    <div class="user-panel">
+      <div class="avatar" id="myAvatar">A</div>
+      <div class="user-info">
+        <div class="name" id="myName">…</div>
+        <div class="tag">anonymous — online</div>
+      </div>
+      <button class="icon-btn" style="font-size:18px;" title="Settings">⚙️</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="chat-header">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <span class="hash">#</span>
+      <h2>general</h2>
+      <span class="desc">Welcome to ama — say something anonymous. Be cool to each other.</span>
+    </div>
+
+    <div id="chat">
+      <div class="channel-intro">
+        <div class="big-hash">#</div>
+        <h3>Welcome to #general!</h3>
+        <p>This is the start of the #general channel. You're <b id="introName">Anonymous#0000</b> — no account, no name, just vibes.</p>
+      </div>
+      <div class="divider" id="messagesDivider" style="display:none;">Messages</div>
+    </div>
+
+    <div class="composer">
+      <div class="attach-bar" id="attachBar" hidden>
+        <div id="attachPreview" style="display:flex;align-items:center;gap:10px;min-width:0;"></div>
+        <span class="fname" id="attachName"></span>
+        <button type="button" id="attachRemove">✕ Remove</button>
+      </div>
+      <form id="form" autocomplete="off">
+        <div class="input-box" id="inputBox">
+          <button type="button" class="icon-btn" id="attachBtn" title="Upload an image, video or file">＋</button>
+          <input type="file" id="fileInput" hidden accept="*/*">
+          <textarea id="input" rows="1" maxlength="500" placeholder="Message #general" aria-label="Message"></textarea>
+          <button type="submit" id="sendBtn">Send</button>
+        </div>
+      </form>
+      <div id="statusLine"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const chat = document.getElementById("chat");
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+  const statusLine = document.getElementById("statusLine");
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("menuBtn");
+  const attachBtn = document.getElementById("attachBtn");
+  const fileInput = document.getElementById("fileInput");
+  const attachBar = document.getElementById("attachBar");
+  const attachPreview = document.getElementById("attachPreview");
+  const attachName = document.getElementById("attachName");
+  const attachRemove = document.getElementById("attachRemove");
+  const inputBox = document.getElementById("inputBox");
+
+  // ---- Anonymous identity: Anonymous#XXXX ----
+  let name = localStorage.getItem("ama_name");
+  if (!name || !/^Anonymous#\d{4}$/.test(name)) {
+    name = "Anonymous#" + String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+    localStorage.setItem("ama_name", name);
+  }
+  document.getElementById("myName").textContent = name;
+  document.getElementById("introName").textContent = name;
+  document.getElementById("myAvatar").textContent = "A";
+  const AVATAR_HUE = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+
+  let lastId = 0;
+  let polling = null;
+  let pendingFile = null;
+  let uploading = false;
+  let introRemoved = false;
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    const today = new Date().toDateString() === d.toDateString();
+    return today
+      ? "Today at " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function fmtSize(b) {
+    if (b >= 1048576) return (b / 1048576).toFixed(1) + " MB";
+    if (b >= 1024) return (b / 1024).toFixed(0) + " KB";
+    return b + " B";
+  }
+
+  function avatarEl(color) {
+    const a = el("div", "avatar", "A");
+    if (color) a.style.background = color;
+    return a;
+  }
+
+  function mediaNode(media) {
+    const t = media.type || "";
+    if (t.startsWith("image/")) {
+      const img = el("img");
+      img.src = media.url;
+      img.alt = media.name || "image";
+      img.loading = "lazy";
+      img.style.cursor = "zoom-in";
+      img.addEventListener("click", () => window.open(media.url, "_blank"));
+      return img;
+    }
+    if (t.startsWith("video/")) {
+      const v = el("video");
+      v.src = media.url;
+      v.controls = true;
+      v.preload = "metadata";
+      return v;
+    }
+    if (t.startsWith("audio/")) {
+      const a = el("audio");
+      a.src = media.url;
+      a.controls = true;
+      return a;
+    }
+    const link = el("a", "file");
+    link.href = media.url;
+    link.download = media.name || "file";
+    link.appendChild(el("span", null, "📄"));
+    const box = el("span");
+    box.appendChild(el("div", null, media.name || "file"));
+    box.appendChild(el("div", "fsize", fmtSize(media.size || 0) + " — click to download"));
+    link.appendChild(box);
+    return link;
+  }
+
+  function render(m) {
+    if (m.id <= lastId) return;
+    lastId = m.id;
+    if (!introRemoved) {
+      const intro = chat.querySelector(".channel-intro");
+      if (intro) intro.remove();
+      document.getElementById("messagesDivider").style.display = "flex";
+      introRemoved = true;
+    }
+    const mine = m.name === name;
+    const row = el("div", "msg");
+    row.appendChild(avatarEl(mine ? `hsl(${AVATAR_HUE},70%,55%)` : `hsl(${[...m.name].reduce((a,c)=>a+c.charCodeAt(0),0)%360},60%,50%)`));
+    const content = el("div", "content");
+    const head = el("div", "head");
+    const nm = el("span", "name" + (mine ? " mine" : ""), m.name);
+    head.appendChild(nm);
+    head.appendChild(el("span", "time", fmtTime(m.ts)));
+    content.appendChild(head);
+    if (m.media) {
+      const md = el("div", "media");
+      md.appendChild(mediaNode(m.media));
+      content.appendChild(md);
+    }
+    if (m.text) content.appendChild(el("div", "body", m.text));
+    row.appendChild(content);
+    chat.appendChild(row);
+    while (chat.children.length > 200) chat.removeChild(chat.children[1] || chat.firstChild);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // ---- Attachments ----
+  function setPendingFile(file) {
+    if (pendingFile) URL.revokeObjectURL(pendingFile.url);
+    if (!file) {
+      pendingFile = null;
+      attachBar.hidden = true;
+      inputBox.classList.remove("with-attach");
+      attachPreview.innerHTML = "";
+      fileInput.value = "";
+      return;
+    }
+    if (file.size > 24 * 1024 * 1024) {
+      statusLine.textContent = "file too large — max 24 MB";
+      return;
+    }
+    pendingFile = { file, url: URL.createObjectURL(file) };
+    attachBar.hidden = false;
+    inputBox.classList.add("with-attach");
+    attachPreview.innerHTML = "";
+    if (file.type.startsWith("image/")) {
+      const img = el("img"); img.src = pendingFile.url; attachPreview.appendChild(img);
+    } else if (file.type.startsWith("video/")) {
+      const v = el("video"); v.src = pendingFile.url; v.muted = true; attachPreview.appendChild(v);
+    } else {
+      attachPreview.appendChild(el("span", null, "📄"));
+    }
+    attachName.textContent = file.name + " · " + fmtSize(file.size);
+  }
+
+  attachBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => setPendingFile(fileInput.files[0]));
+  attachRemove.addEventListener("click", () => setPendingFile(null));
+
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+
+  // Mobile sidebar
+  menuBtn.addEventListener("click", () => sidebar.classList.add("open"));
+  sidebar.addEventListener("click", (e) => {
+    if (sidebar.classList.contains("open") && !e.target.closest(".user-panel")) {
+      if (e.target === sidebar || e.target.classList.contains("channels")) sidebar.classList.remove("open");
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (sidebar.classList.contains("open") && !sidebar.contains(e.target) && e.target !== menuBtn) {
+      sidebar.classList.remove("open");
+    }
+  });
+
+  // ---- Send ----
+  async function uploadFile(file) {
+    const res = await fetch("/api/upload?filename=" + encodeURIComponent(file.name), {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    if (!res.ok) throw new Error("upload failed (" + res.status + ")");
+    return res.json();
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (uploading) return;
+    const text = input.value.trim();
+    if (!text && !pendingFile) return;
+    uploading = true;
+    sendBtn.disabled = true;
+    input.value = "";
+    input.style.height = "auto";
+    statusLine.textContent = pendingFile ? "uploading…" : "";
+    try {
+      let media = null;
+      if (pendingFile) {
+        media = await uploadFile(pendingFile.file);
+        setPendingFile(null);
+      }
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, text, media })
+      });
+      if (res.ok) render((await res.json()).message);
+      statusLine.textContent = "";
+    } catch (err) {
+      statusLine.textContent = "couldn't send — " + err.message;
+    } finally {
+      uploading = false;
+      sendBtn.disabled = false;
+    }
+  });
+
+  // ---- Receive ----
+  async function fetchMessages() {
+    try {
+      const res = await fetch("/api/messages?after=" + lastId);
+      if (!res.ok) throw new Error(res.status);
+      (await res.json()).messages.forEach(render);
+      statusLine.textContent = "";
+    } catch {
+      statusLine.textContent = "reconnecting…";
+    } finally {
+      polling = setTimeout(fetchMessages, 2000);
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { clearTimeout(polling); polling = null; }
+    else if (!polling) fetchMessages();
+  });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  fetchMessages();
+})();
+</script>
 </body>
 </html>
