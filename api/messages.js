@@ -54,13 +54,24 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const { name, text } = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      const { name, text, media } = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
       const clean = String(text || "").trim().slice(0, MAX_LEN);
-      const cleanName = String(name || "Anon").trim().slice(0, 24) || "Anon";
-      if (!clean) return res.status(400).json({ error: "empty message" });
+      const cleanName = String(name || "Anonymous").trim().slice(0, 32) || "Anonymous";
+      if (!clean && !media) return res.status(400).json({ error: "empty message" });
+
+      // Sanitize optional media attachment
+      let cleanMedia = null;
+      if (media && typeof media.url === "string" && media.url.startsWith("https://")) {
+        cleanMedia = {
+          url: media.url,
+          type: String(media.type || "application/octet-stream").slice(0, 60),
+          name: String(media.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80),
+          size: Math.min(parseInt(media.size, 10) || 0, 100 * 1024 * 1024),
+        };
+      }
 
       const store = await readStore();
-      const msg = { id: ++store.nextId, name: cleanName, text: clean, ts: Date.now() };
+      const msg = { id: ++store.nextId, name: cleanName, text: clean, media: cleanMedia, ts: Date.now() };
       store.messages.push(msg);
       if (store.messages.length > MAX_MESSAGES) {
         store.messages = store.messages.slice(-MAX_MESSAGES);
