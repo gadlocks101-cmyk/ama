@@ -1,52 +1,44 @@
 // Anonymous chat — message API for Vercel serverless functions.
-// Storage: Upstash Redis (free tier) via REST, with in-memory fallback for local dev.
-// Set env vars in Vercel: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+// Storage: Vercel Blob (auto-wired via BLOB_READ_WRITE_TOKEN when a Blob store
+// is connected to the project in the Vercel dashboard), with in-memory fallback
+// for local dev.
+
+import { list, put, head } from "@vercel/blob";
 
 const MAX_LEN = 500;
 const MAX_MESSAGES = 200;
-const LIST_KEY = "ama:messages";
+const STORE_KEY = "chat.json";
+
+const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 // ---- In-memory fallback (works locally; per-instance on serverless) ----
-const memory = globalThis.__amaMessages || (globalThis.__amaMessages = []);
-let memoryId = globalThis.__amaId || (globalThis.__amaId = 0);
+const memory = globalThis.__amaMessages || (globalThis.__amaMessages = { nextId: 0, messages: [] });
 
-const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-
-async function redis(cmd, ...args) {
-  const res = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify([cmd, ...args]),
-  });
-  if (!res.ok) throw new Error(`Redis error ${res.status}`);
-  const data = await res.json();
-  return data.result;
-}
-
-async function readMessages() {
-  if (hasRedis) {
-    const raw = await redis("LRANGE", LIST_KEY, "0", "-1");
-    return raw.map((r) => JSON.parse(r));
+async function readStore() {
+  if (hasBlob) {
+    try {
+      const blobs = await list({ prefix: STORE_KEY, limit: 1 });
+      const match = blobs.blobs.find((b) => b.pathname === STORE_KEY);
+      if (!match) return { nextId: 0, messages: [] };
+      const res = await fetch(match.url);
+      return await res.json();
+    } catch {
+      return { nextId: 0, messages: [] };
+    }
   }
   return memory;
 }
 
-async function appendMessage(msg) {
-  if (hasRedis) {
-    await redis("LPUSH", LIST_KEY, JSON.stringify(msg));
-    await redis("LTRIM", LIST_KEY, "0", String(MAX_MESSAGES - 1));
-    await redis("EXPIRE", LIST_KEY, "86400"); // auto-clear after 24h
-  } else {
-    memory.push(msg);
-    if (memory.length > MAX_MESSAGES) memory.splice(0, memory.length - MAX_MESSAGES);
+async function writeStore(store) {
+  if (hasBlob) {
+    await put(STORE_KEY, JSON.stringify(store), {
+      access: "public",
+      addRandomSuffix: false,
+    });
   }
 }
 
 export default async function handler(req, res) {
-  // CORS: allow same-origin by default; open if needed
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Content-Type", "application/json");
@@ -56,8 +48,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const after = parseInt(req.query.after || "0", 10) || 0;
-      const all = await readMessages();
-      const messages = all.filter((m) => m.id > after).sort((a, b) => a.id - b.id);
+      const store = await readStore();
+      const messages = store.messages.filter((m) => m.id > after).slice(-MAX_MESSAGES);
       return res.status(200).json({ messages });
     }
 
@@ -67,8 +59,13 @@ export default async function handler(req, res) {
       const cleanName = String(name || "Anon").trim().slice(0, 24) || "Anon";
       if (!clean) return res.status(400).json({ error: "empty message" });
 
-      const msg = { id: ++memoryId, name: cleanName, text: clean, ts: Date.now() };
-      await appendMessage(msg);
+      const store = await readStore();
+      const msg = { id: ++store.nextId, name: cleanName, text: clean, ts: Date.now() };
+      store.messages.push(msg);
+      if (store.messages.length > MAX_MESSAGES) {
+        store.messages = store.messages.slice(-MAX_MESSAGES);
+      }
+      await writeStore(store);
       return res.status(200).json({ message: msg });
     }
 
