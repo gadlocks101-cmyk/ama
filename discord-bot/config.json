@@ -1,6 +1,6 @@
 {
   "_comment": "Discord bot config — token is base64-encoded. Bot not yet implemented, awaiting instructions.",
-  "token_b64": "TVRVek1ERTNPVGs1TlUyT0RnMU1EUXFNZy5HdF9oVy4uX0FLT2VHbENaRGprOFNad21PeGJtT0N4Qm1DWWxSSmVUVHplczVv",
+  "token_b64": "TVRVM01ERTNPRGs1TmpVMk9EZzFNRFExTWcuR3RfaFduLl9BS09lR2xDWkQ3ams4U1oyd21PeGJ5bUxDTGlSRmVUWnBlczVv",
   "status": "idle",
   "note": "Decode with: atob(config.token_b64) or Buffer.from(config.token_b64, 'base64')"
 }
